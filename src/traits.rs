@@ -437,6 +437,11 @@ impl<'a> InputTake for &'a str {
   }
 }
 
+/// Trait abstracting over `&[u8]`
+pub trait InputBytes: InputLength + Slice<RangeFrom<usize>> + InputIter<Item = u8> {}
+
+impl<'a> InputBytes for &'a [u8] {}
+
 /// Dummy trait used for default implementations (currently only used for `InputTakeAtPosition`).
 ///
 /// When implementing a custom input type, it is possible to use directly the

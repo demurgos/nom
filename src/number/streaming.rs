@@ -4,7 +4,7 @@ use crate::internal::*;
 use crate::error::{ErrorKind, ParseError};
 use crate::traits::{AsChar, InputIter, InputLength, InputTakeAtPosition};
 use crate::lib::std::ops::{RangeFrom, RangeTo};
-use crate::traits::{Offset, Slice};
+use crate::traits::{InputBytes, Offset, Slice};
 use crate::character::streaming::{char, digit1};
 use crate::sequence::{pair, tuple};
 use crate::combinator::{cut, map, opt, recognize};
@@ -24,11 +24,10 @@ use crate::branch::alt;
 /// assert_eq!(parser(b""), Err(Err::Incomplete(Needed::Size(1))));
 /// ```
 #[inline]
-pub fn be_u8<'a, E: ParseError<&'a[u8]>>(i: &'a[u8]) -> IResult<&'a[u8], u8, E> {
-  if i.len() < 1 {
-    Err(Err::Incomplete(Needed::Size(1)))
-  } else {
-    Ok((&i[1..], i[0]))
+pub fn be_u8<I: InputBytes, E: ParseError<I>>(i: I) -> IResult<I, u8, E> {
+  match i.iter_elements().next() {
+    None => Err(Err::Incomplete(Needed::Size(1))),
+    Some(res) => Ok((i.slice(1..), res))
   }
 }
 
@@ -49,12 +48,14 @@ pub fn be_u8<'a, E: ParseError<&'a[u8]>>(i: &'a[u8]) -> IResult<&'a[u8], u8, E> 
 /// assert_eq!(parser(b"\x01"), Err(Err::Incomplete(Needed::Size(2))));
 /// ```
 #[inline]
-pub fn be_u16<'a, E: ParseError<&'a[u8]>>(i: &'a[u8]) -> IResult<&'a[u8], u16, E> {
-  if i.len() < 2 {
-    Err(Err::Incomplete(Needed::Size(2)))
+pub fn be_u16<I: InputBytes, E: ParseError<I>>(i: I) -> IResult<I, u16, E> {
+  if i.input_len() < 2 {
+    Err(nom::Err::Incomplete(Needed::Size(2)))
   } else {
-    let res = ((i[0] as u16) << 8) + i[1] as u16;
-    Ok((&i[2..], res))
+    let res: u16 = i.iter_indices()
+      .take(2)
+      .fold(0, |acc, (idx, x)| acc + (u16::from(x) << (8 * (1 - idx))));
+    Ok((i.slice(2..), res))
   }
 }
 
